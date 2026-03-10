@@ -1,3 +1,8 @@
+# No-recoil-FASTER-HOOTING
+นี่คือโค้ดที่ช่วยให้เกมสนุกยิ่งขึ้น(อาจจะ)
+นี่คือโค้ดที่ผมเขียนขึ้นเองโดยมีการปรับแต่งด้วย AI เล็กน้อย สามารถใช้งานได้ฟรีและแนำนำให้ใช้กับ AutoHotkey
+*ห้ามใช้เพื่อวัตถุประสงค์ทางการค้า เพราะแจกฟรี เอาไปขายนี่โง่เลยนะ*
+
 # No-recoil-FASTER-LOOTING
 It's a code that helps make the game more fun.
 This is code I wrote with some AI-assisted modifications. You can use it for free and provide feedback using AutoHotkey.
