@@ -1,0 +1,188 @@
+#Requires AutoHotkey v2.0
+#SingleInstance Force
+SetWorkingDir(A_ScriptDir)
+#MaxThreadsPerHotkey 1
+
+; =========================================================
+; MAKE BY NEEFz
+; =========================================================
+; GLOBAL CONFIG 
+; =========================================================
+global toggle      := false
+global gunIndex    := 1       
+global is4x        := false
+global isLooting   := false
+
+; ค่าแรงดึงพื้นฐาน 
+global akm_baseDy  := 5.5
+global akm_incDy   := 0.11
+global m416_base   := 7.0
+global aug_base    := 7.5
+global recoil_y    := 9.0     ; ค่าเริ่มต้น (AKM)
+
+; --- ตัวคูณสำหรับ Scope 4x (ถ้า x4 ยังดีดขึ้นหรือดีดลง ให้เพิ่มหรือลดเลข) ---
+global x4_mult     := 1.48     
+
+ShowStatus() {
+    names := ["AKM", "M416", "AUG"]
+    mode  := is4x ? "[ 4X SCOPE ]" : "[ NORMAL ]"
+    ToolTip("GUN: " names[gunIndex] "`nMODE: " mode "`nRECOIL: " (toggle ? "ON" : "OFF"), 10, 10)
+    SetTimer(() => ToolTip(), -2000)
+}
+
+; -------------------------------
+; Hotkeys
+; -------------------------------
+t:: {
+    global toggle := !toggle
+    ShowStatus()
+}
+
+CapsLock:: {
+    global is4x := !is4x
+    ShowStatus()
+}
+
+u:: {
+    global gunIndex := (gunIndex >= 3) ? 1 : gunIndex + 1
+    SetGunValues()
+    ShowStatus()
+}
+
+SetGunValues() {
+    global gunIndex, recoil_y, m416_base, aug_base
+    if (gunIndex = 1)
+        recoil_y := 9.0
+    else if (gunIndex = 2)
+        recoil_y := m416_base
+    else if (gunIndex = 3)
+        recoil_y := aug_base
+}
+
+; แก้ไขปุ่ม Numpad (Syntax ใหม่)
+Numpad1:: {
+    global gunIndex := 1
+    SetGunValues()
+    ShowStatus()
+}
+Numpad2:: {
+    global gunIndex := 2
+    SetGunValues()
+    ShowStatus()
+}
+Numpad3:: {
+    global gunIndex := 3
+    ShowStatus()
+}
+
+; -------------------------------
+; ระบบคุมแรงดีด (ใช้ลูปความเร็วสูง 7ms แบบเดิม)
+; -------------------------------
+~*RButton:: {
+    global toggle, gunIndex, is4x, recoil_y, isLooting, x4_mult
+    global akm_baseDy, akm_incDy
+    
+    if (!toggle || isLooting)
+        return
+
+    shot_count := 0
+    
+    while GetKeyState("RButton", "P") {
+        if (isLooting)
+            break
+
+        dy := 0
+        localDelay := 7
+
+        if (gunIndex = 1) {
+            ; AKM Logic แบบเดิมของคุณ
+            dyFloat := akm_baseDy + (shot_count * akm_incDy)
+            if (dyFloat > 10) 
+                dyFloat := 10
+            dy := dyFloat
+            localDelay := 6
+        } else {
+            ; ปืนอื่นตาม recoil_y
+            dy := recoil_y
+            localDelay := 7
+        }
+
+        ; --- ถ้าเปิดโหมด x4 ให้คูณแรงดึงเข้าไป ---
+        if (is4x) {
+            dy *= x4_mult
+        }
+
+        ; ส่งคำสั่งขยับเมาส์
+        DllCall("mouse_event", "UInt", 0x0001, "Int", 0, "Int", Round(dy), "UInt", 0, "UPtr", 0)
+
+        Sleep(localDelay)
+        shot_count++
+    }
+}
+
+; ================================
+; ======== LOOT SECTION ==========
+; ================================
+; === PUBG Quick Loot Macro (4 slots, smooth & reliable) ===
+; ปุ่ม: Mouse Button 5 (กดครั้งเดียว = เก็บหลายช่อง)
+
+; ---- ตำแหน่งปรับได้ตามจอคุณ ----
+X1 :=         ; จุดช่องกระเป๋าที่จะวาง (ฝั่งซ้าย ใช้ locate ในการวัดค่า)
+Y1 := 144
+X2 :=        ; จุดช่องกระเป๋าที่จะวาง (ฝั่งขวา ใช้ locate ในการวัดค่า)
+Y2 := 453
+Step := 40       ; ระยะห่างแนวตั้งระหว่างไอเทมแต่ละชิ้น (35–45px ส่วนใหญ่)
+Total := 10       ; จำนวนช่องที่จะเก็บ (ปรับได้ 2-10)
+
+; ---- จูนความสมูท/ความชัวร์ ----
+MoveSpeed := 5   ; ความเร็ว MouseMove (0 = เร็วสุด, 5 = ลื่น/รับอินพุตดีขึ้น)
+PreDelay  := 25  ; หน่วงก่อนเริ่มแต่ละชิ้น
+HoldDown  := 25  ; เวลากดค้างเมาส์ก่อนลาก (กันลากหลุด)
+Between   := 35  ; หน่วงหลังปล่อย ก่อนขึ้นชิ้นถัดไป
+Jitter    := 2   ; ขยับพิกัดสุ่ม ±พิกเซล (0–3 พอ)
+
+; ---- ฟังก์ชันช่วยจูน ----
+randSleep(base, spread := 8) {
+    local v := Round(base + Random(-spread, spread))
+    if (v < 0) v := 0
+    Sleep v
+}
+j(px) {
+    return Round(Random(-px, px))
+}
+
+dragOnce(y) {
+    global X1, X2, Y2, MoveSpeed, PreDelay, HoldDown, Between, Jitter
+    randSleep(PreDelay)
+
+    ; ไปหาไอเทม (มีจิเตอร์เล็กน้อย)
+    MouseMove X1 + j(Jitter), y + j(Jitter), MoveSpeed
+    randSleep(8)
+
+    Click "Down"
+    randSleep(HoldDown)                  ; ให้เกมจับคลิกค้างได้ชัวร์
+
+    ; ลากไปช่องกระเป๋า (ไม่ต้องเร็วสุดเพื่อให้รับอินพุตเสถียร)
+    MouseMove X2 + j(Jitter), Y2 + j(Jitter), MoveSpeed
+    randSleep(12)
+
+    Click "Up"
+    randSleep(Between)
+}
+
+XButton2::{
+    global Y1, Step, Total, isLooting
+    isLooting := true          ; บอก aim ว่ากำลัง loot อยู่ หยุดกันดีดก่อน
+
+    local currentY := Y1
+    Loop Total
+    {
+        dragOnce(currentY)
+        currentY += Step
+    }
+
+    isLooting := false         ; loot เสร็จแล้ว เปิดกันดีดได้ตามปกติ
+}
+
+; ปิดโปรแกรมด้วย Ctrl+Esc
+^Esc::ExitApp()
