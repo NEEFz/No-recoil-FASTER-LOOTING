@@ -78,7 +78,7 @@ Numpad3:: {
 ; -------------------------------
 ; ระบบคุมแรงดีด (ใช้ลูปความเร็วสูง 7ms แบบเดิม)
 ; -------------------------------
-~*RButton:: {
+~*LButton:: {
     global toggle, gunIndex, is4x, recoil_y, isLooting, x4_mult
     global akm_baseDy, akm_incDy
     
@@ -95,7 +95,7 @@ Numpad3:: {
         localDelay := 7
 
         if (gunIndex = 1) {
-            ; AKM Logic แบบเดิมของคุณ
+            ; AKM Logic 
             dyFloat := akm_baseDy + (shot_count * akm_incDy)
             if (dyFloat > 10) 
                 dyFloat := 10
